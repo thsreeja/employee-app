@@ -23,27 +23,26 @@ pipeline {
         }
 
         stage('Deploy') {
-    steps {
-        echo 'Deploying Spring Boot application'
+            steps {
+                echo 'Deploying Spring Boot application'
 
-        // Stop app running on 8080 (ignore errors if none)
-        powershell '''
-        $pids = netstat -ano | Select-String ":8080" | ForEach-Object {
-            ($_ -split "\\s+")[-1]
+                // Stop app running on 8080 (ignore if none exists)
+                powershell '''
+                $procIds = netstat -ano | Select-String ":8080" | ForEach-Object {
+                    ($_ -split "\\s+")[-1]
+                }
+
+                foreach ($procId in $procIds) {
+                    Write-Host "Stopping PID $procId"
+                    taskkill /PID $procId /F
+                }
+                '''
+
+                // Start app in a fully detached background process
+                powershell '''
+                Start-Process java -ArgumentList "-jar build\\libs\\*.jar" -NoNewWindow
+                '''
+            }
         }
-        foreach ($pid in $pids) {
-            Write-Host "Stopping PID $pid"
-            taskkill /PID $pid /F
-        }
-        '''
-
-        // Start app in a fully detached background process
-        powershell '''
-        Start-Process java -ArgumentList "-jar build\\libs\\*.jar" -NoNewWindow
-        '''
-    }
-}
-
-
     }
 }
